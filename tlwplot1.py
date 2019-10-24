@@ -6,6 +6,12 @@ import matplotlib.gridspec as gridspec
 import numpy as np
 from cmath import sqrt
 import cmath as cm
+import holoviews as hv
+from holoviews import opts
+
+hv.extension('bokeh')
+hv.extension('matplotlib')
+
 
 #%-------------------------------------------------------------
 #% Matlab Subroutine tlwplot.M
@@ -45,10 +51,6 @@ zdom=10;
 mink=0.;
 maxk=30.;
 
-
-
-
-
 def tlwplot(Lupper,Llower,U,H,a,h0,xdom,zdom,mink,maxk):
 	npts = 1000;  # cells in each direction
 	dk = 0.367 / a; # % wavenumber interval size (smaller the better, but  need to watch calc.time!)
@@ -67,19 +69,17 @@ def tlwplot(Lupper,Llower,U,H,a,h0,xdom,zdom,mink,maxk):
 	dx = (maxx - minx) / npts; #% grid cell size in horizontal
 	dz = (maxz - minz) / npts; #% grid cell size in vertical
 
-	x = np.arange(minx, maxx,dx); #% array of x gridpoints
-	z = np.arange(minz, maxz,dz); #% array of z gridpoints
+	x1 = np.arange(minx, maxx,dx); #% array of x gridpoints
+	z1 = np.arange(minz, maxz,dz); #% array of z gridpoints
 	k = np.arange(mink, maxk,dk); #% array of wavenumbers
 
 	ht=0.
-	x,z=np.meshgrid(x,z)
+	x,z=np.meshgrid(x1,z1)
 	nk=np.int(np.round(nk,decimals=0))
 
 
 	for kloop in range(1,nk):
-
 		kk = k[kloop]; #% horiz         wavenumber
-		print(kk)
 		m = cm.sqrt((Llower * Llower - kk * kk)); #% vert         wave  # in lower layer
 		
 		n = cm.sqrt((kk * kk - Lupper * Lupper)); #% vert     wave  # in upper layer
@@ -89,51 +89,40 @@ def tlwplot(Lupper,Llower,U,H,a,h0,xdom,zdom,mink,maxk):
 		else:
 			r = (m-1j*n) / (m+1j*n); # % reflection coefficient end;
 
-		R = r*np.exp(1j*2.*m*H);# % reflection     calculation
-
+		R = r*np.exp(1j*2.*m*H);
 		A = ((1 + r) * (cm.exp(H*n+1j*H*m))) / (1 + R);
 		C = 1 / (1 + R)
 		D = R*C;
 
 		hs =  np.pi*a*h0 *np.exp(-a * kk);
 		ht = ht + np.pi * dk * a * np.exp(-a * kk); 
-		print(hs,'hs')
 
-	
 		aboveH = (A * np.exp(-z * n))*(z>H) ;# % calculate     w in each     layer
-
 		belowH = (C * np.exp(1j*z*m)+D*np.exp(-1j*m*z))*(z<=H)
-
-
-	  	
 
 		matrix2 = (-1j*U*kk*hs*(aboveH+belowH))*np.exp(kk*-1j*x)
 
 		if kloop > 1: #% trapezoidal integration / summation
 			matrix3 = matrix3 + .5 * (matrix2) * dk;
-			print(np.min(matrix1),np.min(matrix2),np.min(matrix3))
-			print(np.max(matrix1),np.max(matrix2),np.max(matrix3))
 		else:
 			matrix1 = matrix2;
-
 	w = np.real(matrix3/ ht);
-	plt.figure()
-
-
+	#plt.figure()
 	Z = np.arange(minz,maxz,dz)
 	X = np.arange(minx,maxx,dx)
-	
-	plt.contourf(x,z,w,cmap='coolwarm')
-	plt.colorbar()
 
+	#plt.contourf(x,z,w,cmap='coolwarm')
+	##plt.colorbar()
 
-	#Hline = H * np.ones([1, npts + 1]); 
+	#plt.savefig('mw_fig.png')
+	#plt.close('all')
+	return(x1,z1,w)
 
-	#plt.plot( Hline, 'm--'); #% draw     interface   line in magenta!
-	plt.savefig('mw_fig.png')
-	plt.close('all')
+x,z,w=tlwplot(Lupper,Llower,U,H,a,h0,xdom,zdom,mink,maxk)
 
-	return (w)
+img = hv.Image((range(1000), range(1000), w), datatype=['grid'])
+opts.defaults(
+   opts.Image(tools=['hover']),
+   opts.Points (color='black', marker='x', size=20))
+img
 
-w=tlwplot(Lupper,Llower,U,H,a,h0,xdom,zdom,mink,maxk)
-print(np.max(w),np.min(w))
